@@ -8,6 +8,7 @@ STREAM_HOST = "localhost"
 STREAM_PORT = 12346
 BUFFER_SIZE = 2**16
 FRAME_RATE = 30  # Desired frame rate (frames per second)
+MAX_CHUNK_SIZE = 4096  # Maximum chunk size for UDP packets
 
 def stream_main(stop_event):
     stream_server = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -26,19 +27,22 @@ def stream_main(stop_event):
         frame_data_b64 = base64.b64encode(frame_data).decode('utf-8')
         return frame_data_b64
 
-    def client_handler(address, frame):
-        """Send the frame to the client."""
+    def send_frame(address, frame_data):
+        """Send the frame data to the client in chunks."""
         try:
-            stream_server.sendto(frame.encode('utf-8'), address)
+            for i in range(0, len(frame_data), MAX_CHUNK_SIZE):
+                chunk = frame_data[i:i + MAX_CHUNK_SIZE]
+                stream_server.sendto(chunk.encode('utf-8'), address)
+            stream_server.sendto(b'END', address)  # Indicate the end of the frame
         except Exception as e:
             print(f"Error sending message to client: {e}")
 
     print(f"Stream server is streaming on {STREAM_HOST}:{STREAM_PORT}")
-    frame_interval = 1.0 / FRAME_RATE  # time interval between frames
+    frame_interval = 1.0 / FRAME_RATE  # Time interval between frames
     try:
         while not stop_event.is_set():
             try:
-                stream_server.settimeout(1.0)  # timeout to allow checking the stop_event
+                stream_server.settimeout(1.0)  # Timeout to allow checking the stop_event
                 try:
                     _, client_address = stream_server.recvfrom(BUFFER_SIZE)
                 except socket.timeout:
@@ -46,8 +50,7 @@ def stream_main(stop_event):
 
                 frame_data = stream()
                 if frame_data is not None:
-                    client_thread = threading.Thread(target=client_handler, args=(client_address, frame_data))
-                    client_thread.start()
+                    send_frame(client_address, frame_data)
                 else:
                     print("Failed to capture frame.")
 
@@ -61,3 +64,5 @@ def stream_main(stop_event):
     finally:
         cap.release()
         stream_server.close()
+
+
