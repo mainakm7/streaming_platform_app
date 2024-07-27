@@ -6,9 +6,9 @@ import threading
 import tkinter as tk
 from tkinter import simpledialog, scrolledtext
 
-CHAT_SERVER_HOST = "192.168.1.156"
+CHAT_SERVER_HOST = "localhost"
 CHAT_SERVER_PORT = 12345
-STREAM_SERVER_HOST = "192.168.1.156"
+STREAM_SERVER_HOST = "localhost"
 STREAM_SERVER_PORT = 12346
 BUFFER_SIZE = 2**16
 

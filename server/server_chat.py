@@ -1,7 +1,7 @@
 import threading
 import socket
 
-CHAT_HOST = "192.168.1.156"
+CHAT_HOST = "localhost"
 CHAT_PORT = 12345
 
 CHAT_SERVER = socket.socket(socket.AF_INET, socket.SOCK_STREAM)

@@ -4,7 +4,7 @@ import cv2
 import base64
 import time
 
-STREAM_HOST = "192.168.1.156"
+STREAM_HOST = "localhost"
 STREAM_PORT = 12346
 BUFFER_SIZE = 2**16
 FRAME_RATE = 30  # Desired frame rate (frames per second)
