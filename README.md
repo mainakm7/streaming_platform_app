@@ -6,7 +6,7 @@ This application replicates a streaming platform like Twitch. It provides a chat
 
 ### Chat Server
 - **Broadcast messages**: Broadcasts messages to all connected clients.
-- **Private messages**: Send private messages to specific users.
+- **Private messages**: Send private messages to specific users - `/private <nickname> message`
 - **Admin commands**:
   - `/kick <nickname>`: Kick a user from the chat (admin only).
   - `/addadmin <nickname>`: Promote a user to admin (admin only).
@@ -19,7 +19,7 @@ This application replicates a streaming platform like Twitch. It provides a chat
 
 ## Requirements
 
-- Python 3.6 or later
+- Python 3.11.5
 - `opencv-python`
 
 ## Installation
@@ -43,10 +43,7 @@ This application replicates a streaming platform like Twitch. It provides a chat
     This will start both the chat server and the video streaming server.
 
 2. **Connect to the chat server:**
-    Use any Telnet client to connect to the chat server. For example:
-    ```sh
-    telnet 192.168.1.156 12345
-    ```
+    Make sure to update the server HOST IP properly.
     - After connecting, enter a nickname when prompted.
 
 3. **Connect to the video streaming server:**
@@ -61,39 +58,6 @@ This application replicates a streaming platform like Twitch. It provides a chat
 
 ### Client
 - `client_gui.py`: Main script to run the client-side script.
-
-## Stream
-
-- The video stream sends video at 30 fps.
-
-## Chat Features
-
-The chatroom allows admins based on IP. Admins can use some special commands:
-
-- Kick user based on username:
-    ```
-    /kick nickname
-    ```
-- List all admins:
-    ```
-    /listadmins
-    ```
-- Add a user as an admin:
-    ```
-    /addadmin nickname
-    ```
-
-All users can use the following commands:
-
-- List all users:
-    ```
-    /listusers
-    ```
-
-- Send private messages to specific users:
-    ```
-    /private nickname msg
-    ```
 
 ## Contributing
 
