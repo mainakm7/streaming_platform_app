@@ -112,7 +112,7 @@ class Client:
                 frame = np.frombuffer(data_decode2, dtype=np.uint8)
                 frame = cv2.imdecode(frame, cv2.IMREAD_COLOR)
                 if frame is not None:
-                    cv2.imshow("Stream", frame)
+                    cv2.imshow("Stream Video", frame)
                     if cv2.waitKey(1) & 0xFF == ord('q'):
                         break
             except Exception as e:
@@ -156,7 +156,7 @@ class Client:
             self.pvtchat_area.config(state="disabled")
 
     def write_msg(self):
-        msg = f"{self.msg_area.get('1.0', 'end')}"
+        msg = f"{self._nickname}: {self.msg_area.get('1.0', 'end')}"
         self.chat_client.send(msg.encode("utf-8"))
         self.msg_area.delete("1.0", "end")
 

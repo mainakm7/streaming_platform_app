@@ -16,16 +16,19 @@ def stream_main(stop_event):
     stream_server.bind((STREAM_HOST, STREAM_PORT))
 
     cap = cv2.VideoCapture(0)
+    if not cap.isOpened():
+        print("Error: Unable to open webcam.")
+        return
 
     def stream():
         """Capture a frame from the webcam and encode it to base64."""
         ret, frame = cap.read()
         if not ret:
             print("Failed to capture frame.")
-            return None
+            return None, None
         _, frame_data = cv2.imencode('.jpg', frame)
         frame_data_b64 = base64.b64encode(frame_data).decode('utf-8')
-        return frame_data_b64
+        return frame_data_b64, frame
 
     def send_frame(address, frame_data):
         """Send the frame data to the client in chunks."""
@@ -39,6 +42,7 @@ def stream_main(stop_event):
 
     print(f"Stream server is streaming on {STREAM_HOST}:{STREAM_PORT}")
     frame_interval = 1.0 / FRAME_RATE  # Time interval between frames
+
     try:
         while not stop_event.is_set():
             try:
@@ -48,11 +52,14 @@ def stream_main(stop_event):
                 except socket.timeout:
                     continue
 
-                frame_data = stream()
-                if frame_data is not None:
+                frame_data, frame_data_noencode = stream()
+                if frame_data_noencode is not None:
+                    cv2.imshow("TRANSMITTED VIDEO", frame_data_noencode)
+                    key = cv2.waitKey(1) & 0xFF
+                    if key == ord("q"):
+                        break
+
                     send_frame(client_address, frame_data)
-                else:
-                    print("Failed to capture frame.")
 
                 time.sleep(frame_interval)  # Sleep to control the frame rate
 
@@ -64,5 +71,17 @@ def stream_main(stop_event):
     finally:
         cap.release()
         stream_server.close()
+        cv2.destroyAllWindows()
 
+if __name__ == "__main__":
+    stop_event = threading.Event()
+    stream_thread = threading.Thread(target=stream_main, args=(stop_event,))
+    stream_thread.start()
 
+    try:
+        while True:
+            time.sleep(1)
+    except KeyboardInterrupt:
+        stop_event.set()
+        stream_thread.join()
+        print("Server has shut down.")
