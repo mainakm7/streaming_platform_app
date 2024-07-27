@@ -1,17 +1,18 @@
 import threading
 import socket
 
-HOST = "localhost"
-PORT = 12345
+CHAT_HOST = "localhost"
+CHAT_PORT = 12345
 
-SERVER = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-SERVER.bind((HOST, PORT))
-SERVER.listen()
+CHAT_SERVER = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+CHAT_SERVER.bind((CHAT_HOST, CHAT_PORT))
+CHAT_SERVER.listen()
 
 clients = {}  # Dictionary to map nicknames to clients
 admin_addresses = ["localhost"]
 
 def broadcast_msg(message):
+    """Broadcast a message to all connected clients."""
     for client, _ in clients.values():
         try:
             client.send(message.encode("utf-8"))
@@ -19,6 +20,7 @@ def broadcast_msg(message):
             print(f"Error broadcasting message: {e}")
 
 def add_admin(address, nickname):
+    """Promote a user to admin."""
     try:
         admin_addresses.append(address)
         broadcast_msg(f"{nickname} is promoted to an admin")
@@ -26,6 +28,7 @@ def add_admin(address, nickname):
         print(f"Error adding admin: {e}")
 
 def send_private_msg(message, sender_nickname, recipient_nickname):
+    """Send a private message to a specific user."""
     recipient_client, _ = clients.get(recipient_nickname, (None, None))
     if recipient_client:
         try:
@@ -38,6 +41,7 @@ def send_private_msg(message, sender_nickname, recipient_nickname):
             sender_client.send(f"{recipient_nickname} is not connected.".encode("utf-8"))
 
 def admin_kick(kick_nickname):
+    """Kick a user from the chat."""
     kick_client, _ = clients.get(kick_nickname, (None, None))
     if kick_client:
         try:
@@ -48,39 +52,45 @@ def admin_kick(kick_nickname):
         broadcast_msg(f"{kick_nickname} has been kicked from the chat")
 
 def client_handler(client, address, nickname):
+    """Handle communication with a single client."""
     while True:
         try:
             message = client.recv(1024).decode("utf-8")
             if not message:
-                raise Exception("Client disconnected")
+                raise ConnectionResetError("Client disconnected")
 
             if message.startswith("/kick"):
                 if address[0] in admin_addresses:
                     parts = message.split(' ')
-                    kick_nickname = parts[1]
-                    if kick_nickname in clients.keys():
-                        admin_kick(kick_nickname)
+                    if len(parts) > 1:
+                        kick_nickname = parts[1]
+                        if kick_nickname in clients:
+                            admin_kick(kick_nickname)
+                        else:
+                            client.send("Nickname not found".encode("utf-8"))
                     else:
-                        client.send("Nickname not found".encode("utf-8"))
+                        client.send("Invalid /kick command format".encode("utf-8"))
                 else:
                     client.send("Only admins have /kick privileges".encode("utf-8"))
-                    
+
             elif message.startswith("/addadmin"):
                 if address[0] in admin_addresses:
                     parts = message.split(' ')
-                    admin_nickname = parts[1]
-                    if admin_nickname in clients.keys():
-                        _, admin_address = clients[admin_nickname]
-                        add_admin(address=admin_address[0], nickname=admin_nickname)
+                    if len(parts) > 1:
+                        admin_nickname = parts[1]
+                        if admin_nickname in clients:
+                            _, admin_address = clients[admin_nickname]
+                            add_admin(address=admin_address[0], nickname=admin_nickname)
+                        else:
+                            client.send("Nickname not found".encode("utf-8"))
                     else:
-                        client.send("Nickname not found".encode("utf-8"))
+                        client.send("Invalid /addadmin command format".encode("utf-8"))
                 else:
                     client.send("Only admins have /addadmin privileges".encode("utf-8"))
 
             elif message.startswith("/listusers"):
                 users = list(clients.keys())
                 client.send(f"All users: {users}".encode("utf-8"))
-                
 
             elif message.startswith("/listadmins"):
                 if address[0] in admin_addresses:
@@ -101,6 +111,11 @@ def client_handler(client, address, nickname):
             else:
                 broadcast_msg(f"{nickname}: {message}")
 
+        except ConnectionResetError:
+            print(f"Client {nickname} disconnected abruptly")
+            clients.pop(nickname, None)
+            broadcast_msg(f"{nickname} has left the chat")
+            break
         except Exception as e:
             print(f"Error handling client {nickname}: {e}")
             clients.pop(nickname, None)
@@ -109,10 +124,11 @@ def client_handler(client, address, nickname):
             break
 
 def chat_main():
-    print(f"Server is listening on {HOST}:{PORT}")
+    """Start the chat server."""
+    print(f"Chat server is listening on {CHAT_HOST}:{CHAT_PORT}")
     try:
         while True:
-            client, address = SERVER.accept()
+            client, address = CHAT_SERVER.accept()
             print(f"Client joined from address: {address}")
 
             client.send("NICKNAME".encode("utf-8"))
@@ -130,10 +146,8 @@ def chat_main():
             client_thread = threading.Thread(target=client_handler, args=(client, address, nickname))
             client_thread.start()
     except KeyboardInterrupt:
-        print("Server is shutting down.")
+        print("Chat server is shutting down.")
     finally:
         for client, _ in clients.values():
             client.close()
-        SERVER.close()
-
-
+        CHAT_SERVER.close()

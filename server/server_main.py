@@ -9,11 +9,9 @@ def run_stream_server():
     stream_main()
 
 if __name__ == "__main__":
-    # Create threads for running both servers
     chat_thread = threading.Thread(target=run_chat_server)
     stream_thread = threading.Thread(target=run_stream_server)
 
-    # Start the threads
     chat_thread.start()
     stream_thread.start()
 
