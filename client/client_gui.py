@@ -1,18 +1,31 @@
-import threading
 import socket
-import tkinter as tk
-from tkinter import scrolledtext, simpledialog
-import cv2
 import base64
+import cv2
+import numpy as np
+import threading
+import tkinter as tk
+from tkinter import simpledialog, scrolledtext
 
-SERVER_HOST = "localhost"  # Change to the server's public IP if needed
-SERVER_CHAT_PORT = 12345
-SERVER_STREAM_PORT = 12346
+CHAT_SERVER_HOST = "192.168.1.156"
+CHAT_SERVER_PORT = 12345
+STREAM_SERVER_HOST = "192.168.1.156"
+STREAM_SERVER_PORT = 12346
+BUFFER_SIZE = 2**16
 
 class Client:
-    def __init__(self, host, port):
-        self._client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self._client.connect((host, port))
+    def __init__(self, chathost, chatport, streamhost, streamport, buffersize):
+        self.streamhost = streamhost
+        self.streamport = streamport
+        self.chathost = chathost
+        self.chatport = chatport
+        self.buffersize = buffersize
+        
+        self.chat_client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.chat_client.connect((self.chathost, self.chatport))
+        
+        self.stream_client = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        self.stream_client.setsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF, self.buffersize)
+        self.stream_client.connect((self.streamhost, self.streamport))
         
         self._nickname = self.nickname()
         
@@ -23,8 +36,11 @@ class Client:
         self.stop_event = threading.Event()
         
         # Start the receiving messages thread
-        self.receive_thread = threading.Thread(target=self.receive_msg)
-        self.receive_thread.start()
+        self.chat_receive_thread = threading.Thread(target=self.chat_receive_msg)
+        self.chat_receive_thread.start()
+        
+        self.stream_receive_thread = threading.Thread(target=self.stream_receive)
+        self.stream_receive_thread.start()
         
         # Start the GUI in the main thread
         self.gui()
@@ -87,15 +103,34 @@ class Client:
         self.chatbox.protocol("WM_DELETE_WINDOW", self.stop)
         self.chatbox.mainloop()
     
-    def receive_msg(self):
+    def stream_receive(self):
         while self.running and not self.stop_event.is_set():
             try:
-                msg = self._client.recv(1024).decode("utf-8")
+                self.stream_client.sendto(b'I want to join stream!', (self.streamhost, self.streamport))
+                while True:
+                    data, _ = self.stream_client.recvfrom(self.buffersize)
+                    data_decode1 = data.decode("utf-8")
+                    data_decode2 = base64.b64decode(data_decode1)
+                    frame = np.frombuffer(data_decode2, dtype=np.uint8)
+                    frame = cv2.imdecode(frame, cv2.IMREAD_COLOR)
+                    if frame is not None:
+                        cv2.imshow("Stream", frame)
+                        if cv2.waitKey(1) & 0xFF == ord('q'):
+                            break
+            except Exception as e:
+                print(f"Error occurred while receiving stream: {e}")
+                break
+        cv2.destroyAllWindows()
+
+    def chat_receive_msg(self):
+        while self.running and not self.stop_event.is_set():
+            try:
+                msg = self.chat_client.recv(1024).decode("utf-8")
                 if msg == "NICKNAME":
-                    self._client.send(self._nickname.encode("utf-8"))
+                    self.chat_client.send(self._nickname.encode("utf-8"))
                 elif msg == "NICKNAME in use, please change":
                     self._nickname = self.new_nickname()
-                    self._client.send(self._nickname.encode("utf-8"))
+                    self.chat_client.send(self._nickname.encode("utf-8"))
                     if self.chatbox is not None:
                         self.chatbox.after(0, self.restart_gui)
                 elif msg.startswith("Private from"):
@@ -105,8 +140,7 @@ class Client:
                     if self.chatbox is not None:
                         self.chatbox.after(0, self.display_msg, msg)
             except Exception as e:
-                print(f"Error occurred while receiving msg: {e}")
-                self.stop()
+                print(f"Error occurred while receiving chat msg: {e}")
                 break
     
     def display_msg(self, msg):
@@ -123,33 +157,23 @@ class Client:
             self.pvtchat_area.yview("end")
             self.pvtchat_area.config(state="disabled")
     
-    def restart_gui(self):
-        if self.chatbox:
-            self.chatbox.quit()
-            self.chatbox.destroy()
-        self.gui()
-    
     def write_msg(self):
-        msg = self.msg_area.get("1.0", "end").strip()
+        msg = f"{self._nickname}: {self.msg_area.get('1.0', 'end')}".strip()
         self.msg_area.delete("1.0", "end")
-        try:
-            self._client.send(msg.encode("utf-8"))
-        except Exception as e:
-            print(f"Error occurred while sending msg: {e}")
-    
+        self.chat_client.send(msg.encode("utf-8"))
+        
     def stop(self):
         self.running = False
         self.stop_event.set()
+        self.chat_client.close()
+        self.stream_client.close()
         if self.chatbox:
-            self.chatbox.quit()
             self.chatbox.destroy()
-        if self._client:
-            try:
-                self._client.shutdown(socket.SHUT_RDWR)
-                self._client.close()
-            except Exception as e:
-                print(f"Error occurred while closing the socket: {e}")
-        exit(0)
+        cv2.destroyAllWindows()
 
+    def restart_gui(self):
+        self.chatbox.destroy()
+        self.gui()
+        
 if __name__ == "__main__":
-    NewClient = Client(SERVER_HOST, SERVER_PORT)
+    client = Client(CHAT_SERVER_HOST, CHAT_SERVER_PORT, STREAM_SERVER_HOST, STREAM_SERVER_PORT, BUFFER_SIZE)

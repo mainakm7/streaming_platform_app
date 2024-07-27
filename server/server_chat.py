@@ -1,7 +1,7 @@
 import threading
 import socket
 
-CHAT_HOST = "localhost"
+CHAT_HOST = "192.168.1.156"
 CHAT_PORT = 12345
 
 CHAT_SERVER = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -51,9 +51,9 @@ def admin_kick(kick_nickname):
         del clients[kick_nickname]
         broadcast_msg(f"{kick_nickname} has been kicked from the chat")
 
-def client_handler(client, address, nickname):
+def client_handler(client, address, nickname, stop_event):
     """Handle communication with a single client."""
-    while True:
+    while not stop_event.is_set():
         try:
             message = client.recv(1024).decode("utf-8")
             if not message:
@@ -123,28 +123,32 @@ def client_handler(client, address, nickname):
             broadcast_msg(f"{nickname} has left the chat")
             break
 
-def chat_main():
+def chat_main(stop_event):
     """Start the chat server."""
     print(f"Chat server is listening on {CHAT_HOST}:{CHAT_PORT}")
     try:
-        while True:
-            client, address = CHAT_SERVER.accept()
-            print(f"Client joined from address: {address}")
+        while not stop_event.is_set():
+            CHAT_SERVER.settimeout(1.0)  # timeout to allow checking the stop_event
+            try:
+                client, address = CHAT_SERVER.accept()
+                print(f"Client joined from address: {address}")
 
-            client.send("NICKNAME".encode("utf-8"))
-            nickname = client.recv(1024).decode("utf-8")
-
-            while nickname in clients:
-                client.send("NICKNAME in use, please change".encode("utf-8"))
+                client.send("NICKNAME".encode("utf-8"))
                 nickname = client.recv(1024).decode("utf-8")
 
-            clients[nickname] = (client, address)
-            print(f"Nickname of the client is {nickname}")
+                while nickname in clients:
+                    client.send("NICKNAME in use, please change".encode("utf-8"))
+                    nickname = client.recv(1024).decode("utf-8")
 
-            broadcast_msg(f"{nickname} joined the chat")
+                clients[nickname] = (client, address)
+                print(f"Nickname of the client is {nickname}")
 
-            client_thread = threading.Thread(target=client_handler, args=(client, address, nickname))
-            client_thread.start()
+                broadcast_msg(f"{nickname} joined the chat")
+
+                client_thread = threading.Thread(target=client_handler, args=(client, address, nickname, stop_event))
+                client_thread.start()
+            except socket.timeout:
+                continue
     except KeyboardInterrupt:
         print("Chat server is shutting down.")
     finally:
