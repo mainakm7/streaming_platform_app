@@ -6,7 +6,6 @@ import threading
 import tkinter as tk
 from tkinter import simpledialog, scrolledtext
 
-
 CHAT_SERVER_HOST = "localhost"
 CHAT_SERVER_PORT = 12345
 STREAM_SERVER_HOST = "localhost"
@@ -27,7 +26,6 @@ class Client:
 
         self.stream_client = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.stream_client.setsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF, self.buffersize)
-        self.stream_client.connect((self.streamhost, self.streamport))
 
         self._nickname = self.nickname()
         
@@ -158,7 +156,7 @@ class Client:
             self.pvtchat_area.config(state="disabled")
 
     def write_msg(self):
-        msg = f"{self._nickname}: {self.msg_area.get('1.0', 'end')}"
+        msg = f"{self.msg_area.get('1.0', 'end')}"
         self.chat_client.send(msg.encode("utf-8"))
         self.msg_area.delete("1.0", "end")
 
