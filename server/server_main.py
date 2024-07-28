@@ -1,6 +1,6 @@
 import threading
-from server_chat import chat_main
-from server_stream import stream_main
+from server.server_chat import chat_main
+from server.stream_video_host import stream_main
 
 if __name__ == "__main__":
     chat_thread = threading.Thread(target=chat_main)

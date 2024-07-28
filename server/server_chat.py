@@ -123,12 +123,11 @@ def client_handler(client, address, nickname, stop_event):
             broadcast_msg(f"{nickname} has left the chat")
             break
 
-def chat_main(stop_event):
+def chat_main():
     """Start the chat server."""
     print(f"Chat server is listening on {CHAT_HOST}:{CHAT_PORT}")
     try:
-        while not stop_event.is_set():
-            CHAT_SERVER.settimeout(1.0)  # timeout to allow checking the stop_event
+        while True:
             try:
                 client, address = CHAT_SERVER.accept()
                 print(f"Client joined from address: {address}")
@@ -147,8 +146,8 @@ def chat_main(stop_event):
 
                 client_thread = threading.Thread(target=client_handler, args=(client, address, nickname, stop_event))
                 client_thread.start()
-            except socket.timeout:
-                continue
+            except Exception as e:
+                print(f" Error occured while chat: {e}")
     except KeyboardInterrupt:
         print("Chat server is shutting down.")
     finally:
