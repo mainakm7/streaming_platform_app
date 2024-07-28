@@ -109,15 +109,19 @@ class Client:
                 data_buffer = b""
                 while True:
                     data, _ = self.stream_client.recvfrom(self.buffersize)
-                    if data == b'END':
-                        frame_data = base64.b64decode(data_buffer)
-                        frame = np.frombuffer(frame_data, dtype=np.uint8)
-                        frame = cv2.imdecode(frame, cv2.IMREAD_COLOR)
-                        if frame is not None:
-                            cv2.imshow("Stream", frame)
-                            if cv2.waitKey(1) & 0xFF == ord('q'):
-                                break
-                        data_buffer = b""
+                    if b'<END>' in data:
+                        parts = data.split(b'<END>')
+                        data_buffer += parts[0]
+                        if data_buffer:
+                            frame_data = base64.b64decode(data_buffer)
+                            frame = np.frombuffer(frame_data, dtype=np.uint8)
+                            frame = cv2.imdecode(frame, cv2.IMREAD_COLOR)
+                            if frame is not None:
+                                cv2.imshow("Stream", frame)
+                                if cv2.waitKey(1) & 0xFF == ord('q'):
+                                    self.stop_event.set()
+                                    break
+                        data_buffer = parts[1] if len(parts) > 1 else b""
                     else:
                         data_buffer += data
             except Exception as e:

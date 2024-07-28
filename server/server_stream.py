@@ -3,14 +3,16 @@ import socket
 import cv2
 import base64
 import time
+from concurrent.futures import ThreadPoolExecutor
 
 STREAM_HOST = "localhost"
 STREAM_PORT = 12346
 BUFFER_SIZE = 2**16
 FRAME_RATE = 30  # Desired frame rate (frames per second)
 MAX_CHUNK_SIZE = 4096  # Maximum chunk size for UDP packets
+MAX_THREADS = 10  # Maximum number of threads in the thread pool
 
-def stream_main(stop_event):
+def stream_main():
     stream_server = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     stream_server.setsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF, BUFFER_SIZE)
     stream_server.bind((STREAM_HOST, STREAM_PORT))
@@ -36,52 +38,38 @@ def stream_main(stop_event):
             for i in range(0, len(frame_data), MAX_CHUNK_SIZE):
                 chunk = frame_data[i:i + MAX_CHUNK_SIZE]
                 stream_server.sendto(chunk.encode('utf-8'), address)
-            stream_server.sendto(b'END', address)  # Indicate the end of the frame
+            stream_server.sendto(b'<END>', address)  # Indicate the end of the frame
         except Exception as e:
             print(f"Error sending message to client: {e}")
 
     print(f"Stream server is streaming on {STREAM_HOST}:{STREAM_PORT}")
     frame_interval = 1.0 / FRAME_RATE  # Time interval between frames
 
-    try:
-        while not stop_event.is_set():
-            try:
-                stream_server.settimeout(1.0)  # Timeout to allow checking the stop_event
+    with ThreadPoolExecutor(max_workers=MAX_THREADS) as executor:
+        try:
+            while True:
                 try:
-                    _, client_address = stream_server.recvfrom(BUFFER_SIZE)
-                except socket.timeout:
-                    continue
+                    stream_server.settimeout(1.0)  # Timeout to allow checking the stop_event
+                    try:
+                        _, client_address = stream_server.recvfrom(BUFFER_SIZE)
+                    except socket.timeout:
+                        continue
 
-                frame_data, frame_data_noencode = stream()
-                if frame_data_noencode is not None:
-                    cv2.imshow("TRANSMITTED VIDEO", frame_data_noencode)
-                    key = cv2.waitKey(1) & 0xFF
-                    if key == ord("q"):
-                        break
+                    frame_data, frame_data_noencode = stream()
+                    if frame_data is not None:
+                        executor.submit(send_frame, client_address, frame_data)
 
-                    send_frame(client_address, frame_data)
+                    time.sleep(frame_interval)  # Sleep to control the frame rate
 
-                time.sleep(frame_interval)  # Sleep to control the frame rate
+                except Exception as e:
+                    print(f"Error receiving data from client: {e}")
 
-            except Exception as e:
-                print(f"Error receiving data from client: {e}")
-
-    except KeyboardInterrupt:
-        print("Server is shutting down.")
-    finally:
-        cap.release()
-        stream_server.close()
-        cv2.destroyAllWindows()
+        except KeyboardInterrupt:
+            print("Server is shutting down.")
+        finally:
+            cap.release()
+            stream_server.close()
+            cv2.destroyAllWindows()
 
 if __name__ == "__main__":
-    stop_event = threading.Event()
-    stream_thread = threading.Thread(target=stream_main, args=(stop_event,))
-    stream_thread.start()
-
-    try:
-        while True:
-            time.sleep(1)
-    except KeyboardInterrupt:
-        stop_event.set()
-        stream_thread.join()
-        print("Server has shut down.")
+    stream_main()
