@@ -6,7 +6,7 @@ import time
 
 DISTRIBUTION_HOST = "localhost"
 DISTRIBUTION_PORT = 12348
-FRAME_RATE = 10  # Frames per second
+FRAME_RATE = 30  # Frames per second
 
 def send_screen(host):
     frame_interval = 1.0 / FRAME_RATE  # Time interval between frames
