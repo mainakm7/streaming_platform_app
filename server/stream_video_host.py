@@ -20,7 +20,7 @@ def stream(cap):
     frame_data_b64 = base64.b64encode(frame_data).decode('utf-8')
     return frame_data_b64, frame
 
-def send_frame(frame_data):
+def send_frame(video_host, frame_data):
     """Send the frame data to the client in chunks."""
     try:
         for i in range(0, len(frame_data), MAX_CHUNK_SIZE):
@@ -48,7 +48,7 @@ def stream_main():
         while True:
             frame_data, frame = stream(cap)
             if frame_data:
-                send_frame(frame_data)
+                send_frame(video_host, frame_data)
             time.sleep(frame_interval)  # Sleep to control the frame rate
     except KeyboardInterrupt:
         print("Streaming stopped.")
