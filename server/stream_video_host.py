@@ -9,7 +9,6 @@ BUFFER_SIZE = 2**16
 FRAME_RATE = 30  # Desired frame rate (frames per second)
 MAX_CHUNK_SIZE = 4096  # Maximum chunk size for UDP packets
 
-
 def stream(cap):
     """Capture a frame from the webcam and encode it to base64."""
     ret, frame = cap.read()
@@ -31,15 +30,20 @@ def send_frame(video_host, frame_data):
         print(f"Error sending frame data to distribution server: {e}")
 
 def stream_main():
-    
+    # Set up socket connection
     video_host = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     video_host.setsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF, BUFFER_SIZE)
-    video_host.connect((VIDEO_DIST_HOST, VIDEO_DIST_PORT))
+    try:
+        video_host.connect((VIDEO_DIST_HOST, VIDEO_DIST_PORT))
+    except socket.error as e:
+        print(f"Error connecting to distribution server: {e}")
+        return
 
+    # Initialize webcam
     cap = cv2.VideoCapture(0)
     if not cap.isOpened():
         print("Error: Unable to open webcam.")
-        exit(0)
+        return
     
     print(f"Streaming to distribution server at {VIDEO_DIST_HOST}:{VIDEO_DIST_PORT}")
     frame_interval = 1.0 / FRAME_RATE  # Time interval between frames
@@ -49,7 +53,12 @@ def stream_main():
             frame_data, frame = stream(cap)
             if frame_data:
                 send_frame(video_host, frame_data)
-            time.sleep(frame_interval)  # Sleep to control the frame rate
+            if frame is not None:
+                cv2.imshow("Stream:", frame)
+                if cv2.waitKey(1) & 0xFF == ord('q'):
+                    break
+                
+            time.sleep(frame_interval)
     except KeyboardInterrupt:
         print("Streaming stopped.")
     finally:
