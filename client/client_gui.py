@@ -8,8 +8,10 @@ from tkinter import simpledialog, scrolledtext
 
 CHAT_SERVER_HOST = "localhost"
 CHAT_SERVER_PORT = 12345
-STREAM_SERVER_HOST = "localhost"
-STREAM_SERVER_PORT = 12346
+VIDEO_SERVER_HOST = "localhost"
+VIDEO_SERVER_PORT = 12346
+SCREEN_SERVER_HOST = "localhost"
+SCREEN_SERVER_PORT = 12347
 BUFFER_SIZE = 2**16
 
 class Client:

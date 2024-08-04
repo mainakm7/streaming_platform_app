@@ -5,7 +5,7 @@ from io import BytesIO
 import time
 
 DISTRIBUTION_HOST = "localhost"
-DISTRIBUTION_PORT = 12348
+DISTRIBUTION_PORT = 12347
 FRAME_RATE = 30  # Frames per second
 
 def send_screen(host):

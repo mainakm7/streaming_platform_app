@@ -2,7 +2,7 @@ import socket
 import threading
 
 DIST_HOST = "localhost"
-DIST_PORT = 12348
+DIST_PORT = 12347
 HOST_ADDRESS = None
 CLIENTS = []
 
