@@ -8,6 +8,7 @@ import time
 from io import BytesIO
 from PIL import ImageGrab, Image
 import pyautogui
+import numpy as np
 
 CHAT_SERVER_HOST = "localhost"
 CHAT_SERVER_PORT = 12345
@@ -56,8 +57,8 @@ class StreamHost:
         self.video_stream_thread = threading.Thread(target=self.stream_video)
         self.video_stream_thread.start()
         
-        self.screen_stream_thread = threading.Thread(target=self.stream_screen)
-        self.screen_stream_thread.start()
+        # self.screen_stream_thread = threading.Thread(target=self.stream_screen)
+        # self.screen_stream_thread.start()
         
         # Start the GUI in the main thread
         self.gui()
@@ -150,7 +151,7 @@ class StreamHost:
         frame_interval = 1.0 / self.framerate  # Time interval between frames
 
         try:
-            while True:
+            while self.running:
                 frame_data, frame = stream(cap)
                 if frame_data:
                     send_frame(self.video_server, frame_data)
@@ -169,23 +170,46 @@ class StreamHost:
 
     def stream_screen(self):
         frame_interval = 1.0 / self.framerate
+        print(f"Streaming to distribution server at {self.screenhost}:{self.screenport}")
+
         while self.running:
             try:
+                # Take a screenshot and resize
                 screenshot = pyautogui.screenshot()
                 screenshot = screenshot.resize((800, 600))
-                
+
+                # Convert PIL image to OpenCV format
+                open_cv_image = cv2.cvtColor(np.array(screenshot), cv2.COLOR_RGB2BGR)
+
+                # Display the image
+                cv2.imshow("Screen Stream", open_cv_image)
+
+                # Check for user input to quit the streaming
+                key = cv2.waitKey(1) & 0xFF
+                if key == ord('w'):
+                    self.running = False
+                    break
+
+                # Encode and send the screenshot
                 buffer = BytesIO()
                 screenshot.save(buffer, format="JPEG")
                 screenshot_bytes = buffer.getvalue()
-
                 frame_encode = base64.b64encode(screenshot_bytes).decode("utf-8")
                 self.screen_server.sendall((frame_encode + "<END>").encode("utf-8"))
 
-                time.sleep(frame_interval)  # Add a delay to control the frame rate
+                # Delay to control frame rate
+                time.sleep(frame_interval)
             except Exception as e:
                 print(f"Error sending screen info: {e}")
                 self.screen_server.close()
+                self.running = False
                 break
+
+        # Clean up
+        cv2.destroyAllWindows()
+
+
+
 
     def chat_receive_msg(self):
         while self.running and not self.stop_event.is_set():
