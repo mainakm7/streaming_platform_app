@@ -39,7 +39,7 @@ def dist_video_main():
     DIST_SERVER.bind((DIST_HOST, DIST_PORT))
     DIST_SERVER.listen(5)
 
-    print(f"Distribution server is listening for connections at {DIST_HOST}:{DIST_PORT}")
+    print(f"Video share distribution server is listening for connections at {DIST_HOST}:{DIST_PORT}")
 
     while True:
         client_socket, addr = DIST_SERVER.accept()

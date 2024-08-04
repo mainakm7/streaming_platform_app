@@ -1,7 +1,7 @@
 import threading
-from server.server_chat import chat_main
-from server.stream_video_distribution import dist_video_main
-from server.stream_screen_distribution import dist_screen_main
+from server_chat import chat_main
+from stream_video_distribution import dist_video_main
+from stream_screen_distribution import dist_screen_main
 if __name__ == "__main__":
     chat_thread = threading.Thread(target=chat_main)
     video_thread = threading.Thread(target=dist_video_main)
