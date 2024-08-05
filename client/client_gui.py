@@ -15,19 +15,15 @@ SCREEN_SERVER_PORT = 12347
 BUFFER_SIZE = 2**16
 
 class Client:
-    def __init__(self, chathost, chatport, streamhost, streamport, buffersize):
-        self.streamhost = streamhost
-        self.streamport = streamport
+    def __init__(self, chathost, chatport):
+        
         self.chathost = chathost
         self.chatport = chatport
-        self.buffersize = buffersize
         
         self.chat_client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.chat_client.connect((self.chathost, self.chatport))
         
-        self.stream_client = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        self.stream_client.setsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF, self.buffersize)
-        
+                
         self._nickname = self.nickname()
         
         self.running = True
@@ -40,8 +36,7 @@ class Client:
         self.chat_receive_thread = threading.Thread(target=self.chat_receive_msg)
         self.chat_receive_thread.start()
         
-        self.stream_receive_thread = threading.Thread(target=self.stream_receive)
-        self.stream_receive_thread.start()
+        
         
         # Start the GUI in the main thread
         self.gui()
@@ -104,31 +99,7 @@ class Client:
         self.chatbox.protocol("WM_DELETE_WINDOW", self.stop)
         self.chatbox.mainloop()
     
-    def stream_receive(self):
-        while self.running and not self.stop_event.is_set():
-            try:
-                self.stream_client.sendto(b'I want to join stream!', (self.streamhost, self.streamport))
-                data_buffer = b""
-                while True:
-                    data, _ = self.stream_client.recvfrom(self.buffersize)
-                    if data != b'<END>':
-                        data_buffer += data
-                    else:
-                        if data_buffer:
-                            frame_data = base64.b64decode(data_buffer)
-                            frame = np.frombuffer(frame_data, dtype=np.uint8)
-                            frame = cv2.imdecode(frame, cv2.IMREAD_COLOR)
-                            if frame is not None:
-                                cv2.imshow("Stream:", frame)
-                                if cv2.waitKey(1) & 0xFF == ord('q'):
-                                    self.stop_event.set()
-                                    break
-                        data_buffer = b""
-                    
-            except Exception as e:
-                print(f"Error occurred while receiving stream: {e}")
-                break
-        cv2.destroyAllWindows()
+
 
     def chat_receive_msg(self):
         while self.running and not self.stop_event.is_set():
@@ -174,7 +145,6 @@ class Client:
         self.running = False
         self.stop_event.set()
         self.chat_client.close()
-        self.stream_client.close()
         if self.chatbox:
             self.chatbox.destroy()
         cv2.destroyAllWindows()
@@ -184,4 +154,4 @@ class Client:
         self.gui()
         
 if __name__ == "__main__":
-    client = Client(CHAT_SERVER_HOST, CHAT_SERVER_PORT, STREAM_SERVER_HOST, STREAM_SERVER_PORT, BUFFER_SIZE)
+    client = Client(CHAT_SERVER_HOST, CHAT_SERVER_PORT)
